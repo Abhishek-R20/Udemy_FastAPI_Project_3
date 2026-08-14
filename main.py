@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Depends
-from models import Base, Todos
+from models import Base
+import models
 from database import engine, get_db
 from typing import Annotated
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 app = FastAPI()
 
@@ -16,6 +18,13 @@ async def home():
     return {"message": "Welcome to project 3"}
 
 
+# @app.get("/todos/")
+# async def real_all(db: db_dependency):
+#     return db.query(Todos).all()
+
+
 @app.get("/todos/")
 async def real_all(db: db_dependency):
-    return db.query(Todos).all()
+    result = db.execute(select(models.Todos))
+    todos = result.scalars().all()
+    return todos
