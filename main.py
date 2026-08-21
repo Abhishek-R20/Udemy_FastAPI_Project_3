@@ -5,6 +5,7 @@ from database import engine, get_db
 from typing import Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from pydantic_models import TodosCreate, TodosResponse
 
 app = FastAPI()
 
@@ -38,3 +39,17 @@ async def get_todo_by_id(db: db_dependency, id: Annotated[int, Path(ge=0)]):
     if todo_by_id is not None:
         return todo_by_id
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NO Task Found")
+
+
+@app.post(
+    "/todos/",
+    response_model=TodosResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_todo(todo_request: TodosCreate, db: db_dependency):
+    todo_dict = todo_request.model_dump()
+    new_todo = models.Todos(**todo_dict)
+    db.add(new_todo)
+    db.commit()
+    db.refresh(new_todo)
+    return new_todo
