@@ -50,7 +50,7 @@ async def read_all(db: db_dependency):
 
 
 # It is a strict rule in the Python language: You cannot put a parameter without a default value after a parameter with a default value.
-@app.get("/todos/get_todo/{id}", status_code=status.HTTP_200_OK)
+@app.get("/todos/{id}", status_code=status.HTTP_200_OK)
 async def get_todo_by_id(db: db_dependency, id: Annotated[int, Path(ge=0)]):
     result = await db.execute(select(models.Todos).where(models.Todos.id == id))
     todo_by_id = result.scalars().first()
@@ -91,3 +91,16 @@ async def update_post(db: db_dependency, id: int, todo_request: TodosUpdate):
     await db.commit()
     await db.refresh(todo)
     return todo
+
+
+@app.delete("/todos/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_todo(db: db_dependency, id: Annotated[int, Path(gt=0)]):
+    result = await db.execute(select(models.Todos).where(models.Todos.id == id))
+    todo = result.scalars().first()
+    if not todo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No todo with such id",
+        )
+    await db.delete(todo)
+    await db.commit()
