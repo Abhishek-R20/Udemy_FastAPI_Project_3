@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Path
+from fastapi import FastAPI, Depends, HTTPException, status, Path, Request
 from models import Base
 import models
 from database import engine, get_db
@@ -9,6 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic_models import TodosCreate, TodosResponse, TodosUpdate
 from contextlib import asynccontextmanager
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exception_handlers import (
+    http_exception_handler,
+    request_validation_exception_handler,
+)
 
 # app = FastAPI()
 
@@ -104,3 +111,34 @@ async def delete_todo(db: db_dependency, id: Annotated[int, Path(gt=0)]):
         )
     await db.delete(todo)
     await db.commit()
+
+
+@app.exception_handler(StarletteHTTPException)
+async def general_http_exception_handler(
+    request: Request, exception: StarletteHTTPException
+):
+    message = exception.detail or "Error occured"
+    if request.url.path.startswith("/todos"):
+        return JSONResponse(
+            status_code=exception.status_code,
+            content={
+                "detail": "Starlette Http Exception",
+                "message": message,
+            },
+        )
+    return await http_exception_handler(request=request, exc=exception)
+
+
+@app.exception_handler(RequestValidationError)
+async def general_validation_error_handler(
+    request: Request, exception: RequestValidationError
+):
+    if request.url.path.startswith("/todos"):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                "detail": "Request Validation Error",
+                "error": exception.errors(),
+            },
+        )
+    return await request_validation_exception_handler(request=request, exc=exception)
